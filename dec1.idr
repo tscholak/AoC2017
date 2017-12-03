@@ -1,21 +1,7 @@
 module Dec1
 
 import Data.Vect
-
-cycle : (xs : Vect (S n) a) -> Stream a
-cycle (x :: xs) = x :: cycle' xs
-  where cycle' : Vect n a -> Stream a
-        cycle' []        = x :: cycle' xs
-        cycle' (y :: ys) = y :: cycle' ys
-
-take' : (n : Nat) -> (xs : Stream a) -> Vect n a
-take' Z _ = []
-take' (S n) (x :: xs) = x :: (take' n xs)
-
-shift : Nat -> Vect n a -> Vect n a
-shift Z xs = xs
-shift (S k) [] = []
-shift {n = S m} (S k) (x :: xs) = take' (S m) $ drop (S k) $ cycle (x :: xs)
+import Utils
 
 dec1' : Eq a => Monoid a => Nat -> Vect n a -> a
 dec1' k xs = foldl f neutral $ zip xs (shift k xs) where

@@ -2,6 +2,8 @@ module Dec3
 
 import Data.Vect
 
+%default total
+
 data Orientation = Up | Left | Down | Right
 
 data MoverState : (position : (Int, Int)) -> (orientation : Orientation) -> Type where
@@ -19,35 +21,35 @@ move {x} {y} {orientation} (MkMoverState history) =
     -- (x, y), Up, left-turn possible => (x-1, y), Left
     -- (x, y), Up, left-turn impossible, up possible => (x, y+1), Up
     -- (x, y), Up, left-turn impossible, up impossible => (x, y), Up
-    Up => case isElem (x-1, y) history of
-      No _ => Right (Right (Left (MkMoverState ((x, y) :: history))))
-      Yes _ => case isElem (x, y+1) history of
-        No _ => Right (Left (MkMoverState ((x, y) :: history)))
-        Yes _ => Left (MkMoverState history)
+    Up => case elem (x-1, y) history of
+      False => Right (Right (Left (MkMoverState ((x, y) :: history))))
+      True => case elem (x, y+1) history of
+        False => Right (Left (MkMoverState ((x, y) :: history)))
+        True => Left (MkMoverState history)
     -- (x, y), Left, left-turn possible => (x, y-1), Downs
     -- (x, y), Left, left-turn impossible, left possible => (x-1, y), Left
     -- (x, y), Left, left-turn impossible, left impossible => (x, y), Left
-    Left => case isElem (x, y-1) history of
-      No _ => Right (Right (Right (Left (MkMoverState ((x, y) :: history)))))
-      Yes _ => case isElem (x-1, y) history of
-        No _ => Right (Right (Left (MkMoverState ((x, y) :: history))))
-        Yes _ => Left (MkMoverState history)
+    Left => case elem (x, y-1) history of
+      False => Right (Right (Right (Left (MkMoverState ((x, y) :: history)))))
+      True => case elem (x-1, y) history of
+        False => Right (Right (Left (MkMoverState ((x, y) :: history))))
+        True => Left (MkMoverState history)
     -- (x, y), Down, left-turn possible => (x+1, y), Right
     -- (x, y), Down, left-turn impossible, down possible => (x, y-1), Down
     -- (x, y), Down, left-turn impossible, down impossible => (x, y), Down
-    Down => case isElem (x+1, y) history of
-      No _ => Right (Right (Right (Right (MkMoverState ((x, y) :: history)))))
-      Yes _ => case isElem (x, y-1) history of
-        No _ => Right (Right (Right (Left (MkMoverState ((x, y) :: history)))))
-        Yes _ => Left (MkMoverState history)
+    Down => case elem (x+1, y) history of
+      False => Right (Right (Right (Right (MkMoverState ((x, y) :: history)))))
+      True => case elem (x, y-1) history of
+        False => Right (Right (Right (Left (MkMoverState ((x, y) :: history)))))
+        True => Left (MkMoverState history)
     -- (x, y), Right, left-turn possible => (x, y+1), Up
     -- (x, y), Right, left-turn impossible, right possible => (x+1, y), Right
     -- (x, y), Right, left-turn impossible, right impossible => (x, y), Right
-    Right => case isElem (x, y+1) history of
-      No _ => Right (Left (MkMoverState ((x, y) :: history)))
-      Yes _ => case isElem (x+1, y) history of
-        No _ => Right (Right (Right (Right (MkMoverState ((x, y) :: history)))))
-        Yes _ => Left (MkMoverState history)
+    Right => case elem (x, y+1) history of
+      False => Right (Left (MkMoverState ((x, y) :: history)))
+      True => case elem (x+1, y) history of
+        False => Right (Right (Right (Right (MkMoverState ((x, y) :: history)))))
+        True => Left (MkMoverState history)
 
 manhattanDistance : (Int, Int) -> (Int, Int) -> Int
 manhattanDistance (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
@@ -56,7 +58,7 @@ walkDistance : MoverState (x, y) orientation -> (steps: Nat) -> Int
 walkDistance (MkMoverState []) Z = 0
 walkDistance (MkMoverState (h :: hs)) Z = manhattanDistance h $ last (h :: hs)
 walkDistance state (S k) = case move state of
-  Left state => walkDistance state Z
+  Left state => walkDistance state k -- walkDistance state Z doesn't preserve totality for some reason
   Right (Left (state)) => walkDistance state k
   Right (Right (Left (state))) => walkDistance state k
   Right (Right (Right (Left (state)))) => walkDistance state k

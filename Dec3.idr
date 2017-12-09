@@ -10,12 +10,15 @@ data MoverState : (position : (Int, Int)) -> (orientation : Orientation) -> Type
      MkMoverState : (history : Vect n (Int, Int)) -> (values : Vect n Int) ->
                     MoverState position orientation
 
--- TODO: Use foldl and zip instead
 sumOfNeighbours : (history : Vect n (Int, Int)) -> (values : Vect n Int) -> (x, y : Int) -> Int
-sumOfNeighbours [] [] x y = 0
-sumOfNeighbours (h :: hs) (v :: vs) x y = case (abs (x - fst h), abs (y - snd h)) of
-  (1, 1) => v + sumOfNeighbours hs vs x y
-  _ => sumOfNeighbours hs vs x y
+sumOfNeighbours history values x y = foldl f 0 $ zip history values
+  where
+    f : Int -> ((Int, Int), Int) -> Int
+    f agg (h, v) = case (abs (x - fst h), abs (y - snd h)) of
+      (0, 1) => v + agg
+      (1, 0) => v + agg
+      (1, 1) => v + agg
+      _ => agg
 
 move : MoverState (x, y) orientation ->
        Either (MoverState (x, y) orientation)
@@ -62,8 +65,8 @@ manhattanDistance : (Int, Int) -> (Int, Int) -> Int
 manhattanDistance (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
 
 walkDistance : (steps: Nat) -> MoverState (x, y) orientation -> Int
-walkDistance Z (MkMoverState [] _) = 0
-walkDistance Z (MkMoverState (h :: hs) _) = manhattanDistance h $ last (h :: hs)
+walkDistance Z (MkMoverState [] []) = 0
+walkDistance Z (MkMoverState (h :: hs) (v :: vs)) = manhattanDistance h $ last (h :: hs)
 walkDistance (S k) state = case move state of
   Left state => walkDistance k state -- walkDistance state Z doesn't preserve totality for some reason
   Right (Left (state)) => walkDistance k state
@@ -74,13 +77,25 @@ walkDistance (S k) state = case move state of
 dec3a : Int
 dec3a = walkDistance {x = 0} {y = 0} {orientation = Down} 361527 (MkMoverState [] [])
 
--- TODO: defined like this, it might never finish. how to make this total? max-attempts?
-walkUntil : (p : Int -> Bool) -> MoverState (x, y) orientation -> Int
-walkUntil p state = case move state of
+data Fuel = Dry | More (Lazy Fuel)
+
+partial
+forever : Fuel
+forever = More forever
+
+walkUntil : Fuel -> (p : Int -> Bool) -> MoverState (x, y) orientation -> Maybe Int
+walkUntil Dry p state = Nothing
+walkUntil (More fuel) p state = case move state of
     Left state' => recurse state'
     Right (Left (state')) => recurse state'
     Right (Right (Left (state'))) => recurse state'
     Right (Right (Right (Left (state')))) => recurse state'
     Right (Right (Right (Right (state')))) => recurse state'
   where
-    recurse : MoverState (x', y') orientation' -> Int
+    recurse : (MoverState (x', y') orientation') -> Maybe Int
+    recurse state = case state of
+      MkMoverState _ [] => walkUntil fuel p state
+      MkMoverState _ (v :: vs) => if p v then walkUntil fuel p state else Just v
+
+dec3b : Fuel -> Maybe Int
+dec3b fuel = walkUntil {x = 1} {y = 0} {orientation = Right} fuel (\i => i <= 361527) (MkMoverState [(0, 0)] [1])
